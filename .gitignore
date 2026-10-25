@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Audio and Media Files
+*.mp3
+*.wav
+*.m4a
+*.webm
+*.mp4
+*.mkv
+
+# Transcripts and Results Output
+yt_transcripts/
+transcripts/
+output/
+*.txt
+
+# Exception: keep README and requirements
+!requirements.txt
+
+# Whisper Models (large binary files)
+*.bin
+models/*.bin
+
+# Environments and OS
+.env
+.env.*
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDEs
+.vscode/
+.idea/
