@@ -26,37 +26,57 @@ from typing import List, Dict, Any, Optional
 # --- Auto-locate system dependencies ---
 HOST_FFMPEG_DIR = r"C:\Users\exoti\ffmpeg-4.3.1-2020-11-19-full_build\bin"
 HOST_YTDLP_PATH = r"C:\Users\exoti\Downloads\yt-dlp.exe"
-HOST_MODEL_PATH = r"C:\Users\exoti\Downloads\WhisperDesktop\ggml-large-v2.bin"
+HOST_MODEL_V3_TURBO = r"C:\Users\exoti\Downloads\WhisperDesktop\ggml-large-v3-turbo.bin"
+HOST_MODEL_V2 = r"C:\Users\exoti\Downloads\WhisperDesktop\ggml-large-v2.bin"
 
 # Inject ffmpeg into PATH if needed
 if not shutil.which("ffmpeg") and os.path.isdir(HOST_FFMPEG_DIR):
     os.environ["PATH"] = HOST_FFMPEG_DIR + os.pathsep + os.environ.get("PATH", "")
 
 
-def get_default_model_path() -> str:
-    """Finds the best available Whisper model path or model identifier."""
+def resolve_model_path(requested: Optional[str] = None) -> str:
+    """Resolves model path from alias ('turbo', 'v2'), environment, or defaults."""
+    if requested:
+        key = requested.strip().lower()
+        if key in ("turbo", "large-v3-turbo", "v3-turbo"):
+            if os.path.isfile(HOST_MODEL_V3_TURBO):
+                return HOST_MODEL_V3_TURBO
+            return "large-v3-turbo"
+        if key in ("v2", "large-v2"):
+            if os.path.isfile(HOST_MODEL_V2):
+                return HOST_MODEL_V2
+            return "large-v2"
+        if os.path.isfile(requested):
+            return requested
+        return requested
+
     # 1. Environment variable
     env_path = os.environ.get("WHISPER_MODEL_PATH")
-    if env_path and (os.path.isfile(env_path) or env_path in ("tiny", "base", "small", "medium", "large-v1", "large-v2", "large-v3", "large-v3-turbo")):
-        return env_path
+    if env_path:
+        return resolve_model_path(env_path)
 
     # 2. Local ./models/ directory
     local_models_dir = Path("./models")
     if local_models_dir.is_dir():
         bins = list(local_models_dir.glob("*.bin"))
         if bins:
-            # Prefer large-v2 if present
             for b in bins:
-                if "large-v2" in b.name:
+                if "turbo" in b.name.lower() or "large-v2" in b.name.lower():
                     return str(b.resolve())
             return str(bins[0].resolve())
 
-    # 3. Known host download location
-    if os.path.isfile(HOST_MODEL_PATH):
-        return HOST_MODEL_PATH
+    # 3. Known host download location (prefer turbo if available, fallback to v2)
+    if os.path.isfile(HOST_MODEL_V3_TURBO):
+        return HOST_MODEL_V3_TURBO
+    if os.path.isfile(HOST_MODEL_V2):
+        return HOST_MODEL_V2
 
-    # 4. Fallback to model name (pywhispercpp can auto-download standard models)
-    return "large-v2"
+    return "large-v3-turbo"
+
+
+def get_default_model_path() -> str:
+    """Finds the best available Whisper model path or model identifier."""
+    return resolve_model_path()
 
 
 # ANSI Color codes for styled console output
@@ -360,8 +380,7 @@ def process_youtube_name_finder(
     output_dir = Path(output_dir_str).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    if not model_path:
-        model_path = get_default_model_path()
+    model_path = resolve_model_path(model_path)
 
     # Locate tools
     ytdlp_bin = find_executable("yt-dlp", HOST_YTDLP_PATH)
@@ -443,7 +462,7 @@ def main():
     parser.add_argument("name", nargs="?", help="Name or phrase to search for")
     parser.add_argument("-u", "--url-opt", dest="url_opt", help="YouTube video URL (flag option)")
     parser.add_argument("-n", "--name-opt", dest="name_opt", help="Name or phrase to search for (flag option)")
-    parser.add_argument("-m", "--model", default=default_model, help=f"Path or name of GGML Whisper model (default: {default_model})")
+    parser.add_argument("-m", "--model", default=default_model, help=f"Path or alias ('turbo', 'v2') of GGML Whisper model (default: {default_model})")
     parser.add_argument("-o", "--output-dir", default="./yt_transcripts", help="Directory for output files (default: ./yt_transcripts)")
     parser.add_argument("-t", "--threads", type=int, default=6, help="Number of CPU threads for Whisper (default: 6)")
     parser.add_argument("-l", "--language", default="auto", help="Language code (e.g. 'en', 'auto')")
